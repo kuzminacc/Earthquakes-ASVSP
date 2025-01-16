@@ -48,6 +48,8 @@ services:
       - ./config.env
     volumes:
       - ./batch:/batch
+      - ./consumer:/consumer
+      - ./producer:/produce
 
 
   spark-worker-1:
@@ -153,6 +155,72 @@ services:
     restart: always
     depends_on: 
       - db
+
+  zoo1:
+    image: zookeeper:3.4.9
+    container_name: zoo1
+    ports:
+      - "2181:2181"
+    environment:
+        ZOO_MY_ID: 1
+        ZOO_PORT: 2181
+        ZOO_SERVERS: server.1=zoo1:2888:3888
+    volumes:
+      - zoo1:/data
+      - zoo1log:/datalo
+
+  kafka1:
+    image: confluentinc/cp-kafka:4.1.3-1
+    container_name: kafka1
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: LISTENER_DOCKER_INTERNAL://kafka1:19092,LISTENER_DOCKER_EXTERNAL://${DOCKER_HOST_IP:-127.0.0.1}:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_DOCKER_INTERNAL:PLAINTEXT,LISTENER_DOCKER_EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: LISTENER_DOCKER_INTERNAL
+      KAFKA_ZOOKEEPER_CONNECT: "zoo1:2181"
+      KAFKA_BROKER_ID: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO" #OVO PROVERI
+    volumes:
+      - kafka1:/var/lib/kafka/data
+    depends_on:
+      - zoo1
+  #ovde mozda dodati jos neke vrednosti
+  producer:
+    build: ./producer
+    container_name: kafka_producer
+    environment:
+      KAFKA_BROKER: "kafka1:19092"
+      KAFKA_TOPIC: "earthquakes-topic"
+      DATASET_API_LINK: "https://earthquake.usgs.gov/fdsnws/"
+    depends_on:
+      - kafka1
+    env_file:
+      - ./config.env
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017"  # Standardni port za MongoDB
+    volumes:
+      - mongodb-data:/data/db  # Čuvanje podataka na lokalnom disku
+    environment:
+      TZ: "Europe/Belgrade"
+      
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    restart: always
+    ports:
+      - "8081:8081"  # Port za pristup Mongo Express UI
+    environment:
+      ME_CONFIG_MONGODB_URL: "mongodb://mongodb:27017"  # Veza sa MongoDB
+      ME_CONFIG_BASICAUTH_USERNAME: "admin"  # Korisničko ime za UI
+      ME_CONFIG_BASICAUTH_PASSWORD: "admin"  # Lozinka za UI
+    depends_on:
+      - mongodb
       
 volumes:
   hadoop_namenode:
@@ -160,6 +228,10 @@ volumes:
   hadoop_datanode2:
   db-data:
   metabase-data:
+  zoo1:
+  zoo1log:
+  kafka1:
+  mongodb-data:
 
 networks:
   asvsp:
