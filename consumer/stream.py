@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType, IntegerType
-from pyspark.sql.functions import col, from_json, window, avg, expr, count, from_unixtime, explode, split, lit, when, to_timestamp, lag, radians, sin, cos, sqrt, atan2
+from pyspark.sql.functions import col, from_json, window, avg, expr, count, from_unixtime, explode, split, lit, when, to_timestamp, lag, radians, sin, cos, sqrt, atan2, abs 
 from pyspark.sql import functions as F
 import os
 from pyspark.sql.window import Window
@@ -79,7 +79,7 @@ df = df.withColumn("time", from_unixtime(col("time").cast("long") / 1000))
 #postgresql_stream=num_per_hour_df.writeStream.trigger(processingTime='120 seconds').outputMode('update').foreachBatch(lambda batch_df, epoch_id: write_to_mongodb(batch_df, epoch_id, "testCollection")).start()
 
 #postgresql_stream.awaitTermination()
-
+'''
 #****UPIT 1**** Proscena magnituda zemljotresa u periodima od X minuta
 avg_magnitude_df = df.groupBy(window(col("time"), "30 minutes")).agg(avg("magnitude").alias("avg_magnitude"))
 mongo_query1_stream = avg_magnitude_df.writeStream.trigger(processingTime='60 seconds').outputMode('update').foreachBatch(lambda batch_df, epoch_id: write_to_mongodb(batch_df, epoch_id, "avgMagnitude")).start()
@@ -91,7 +91,7 @@ energy_df = df.groupBy(window(col("time"), "30 minutes")).agg(
 )
 mongo_query2_stream = energy_df.writeStream.trigger(processingTime='60 seconds').outputMode('update').foreachBatch(lambda batch_df, epoch_id: write_to_mongodb(batch_df, epoch_id, "totalEnergy")).start()
 
-''' ***********LOS UPIT***********
+***********LOS UPIT***********
 #*****UPIT 3***** Pratiti trend broja zemljotresa u poslednjih X minuta (rast, opadanje ili stabilnost)  kraju svakog od petominutnih prozora
 count_per_window = df.groupBy(window(col("time"), "30 minutes")).agg(
     count("*").alias("num_earthquakes")
@@ -106,7 +106,7 @@ trend_df = count_per_window.withColumn(
 )
 
 mongo_query3_stream = trend_df.writeStream.trigger(processingTime='60 seconds').outputMode('update').foreachBatch(lambda batch_df, epoch_id: write_to_mongodb(batch_df, epoch_id, "numberOfEarthquakesTrend")).start()
-'''
+
 
 #****UPIT 4**** Pratiti procenat zemljotresa sa dubinom manjom od 10 km u odnosu na ukupne zemljotrese u poslednjih X minuta.
 shallow_quake_percentage_df = df.groupBy(window(col("time"), "30 minutes")).agg(
@@ -160,6 +160,41 @@ mongo_query6_stream = region_quake_count_df.writeStream.trigger(processingTime='
 query = region_quake_count_df.writeStream.outputMode("complete").option("truncate", "false").format("console").start()
 query.awaitTermination()
 
-
+'''
 
 ##TREBA DODATI NEKI SA SPAJANJEM JOIN
+
+# Dodavanje vremena u minutima za jednostavnu grupaciju
+# Kreiranje minute prozora za trenutne i prethodne podatke
+df_with_window = df.withColumn("minute_window", window(col("time"), "60 minute"))
+
+previous_df = df_with_window.select(
+    col("id").alias("previous_id"),
+    col("magnitude").alias("previous_magnitude"),
+    col("time").alias("previous_time"),
+    col("latitude").alias("previous_latitude"),
+    col("longitude").alias("previous_longitude"),
+    col("depth").alias("previous_depth"),
+    col("minute_window.start").alias("previous_window_start")
+)
+
+# Povezivanje trenutnih i prethodnih zemljotresa
+joined_df = df_with_window.join(
+    previous_df,
+    (col("minute_window.start") == col("previous_window_start")) &
+    (F.abs(col("latitude") - col("previous_latitude")) < 20) &
+    (F.abs(col("longitude") - col("previous_longitude")) < 20),
+    "inner"
+)
+
+# Kreiranje upozorenja za bliske događaje
+alert_df = joined_df.withColumn(
+    "alert_status",
+    col("magnitude") - col("previous_magnitude") > 0.2
+).filter(col("alert_status") == True)
+
+#mongo_query7_stream = region_quake_count_df.writeStream.trigger(processingTime='120 seconds').outputMode('update').foreachBatch(lambda batch_df, epoch_id: write_to_mongodb(batch_df, epoch_id, "numberOfEarthquakesNearLA")).start()
+
+# Prikaz rezultata (ili pisanje u MongoDB)
+query = alert_df.writeStream.outputMode("append").format("console").start()
+query.awaitTermination()
