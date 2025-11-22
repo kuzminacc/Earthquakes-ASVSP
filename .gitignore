@@ -1,1 +1,4 @@
 /data/raw
+/models/seismic_model
+config.env
+.env

@@ -79,12 +79,17 @@ df = df.withColumn("time", from_unixtime(col("time").cast("long") / 1000))
 #postgresql_stream=num_per_hour_df.writeStream.trigger(processingTime='120 seconds').outputMode('update').foreachBatch(lambda batch_df, epoch_id: write_to_mongodb(batch_df, epoch_id, "testCollection")).start()
 
 #postgresql_stream.awaitTermination()
-'''
+
 #****UPIT 1**** Proscena magnituda zemljotresa u periodima od X minuta
 avg_magnitude_df = df.groupBy(window(col("time"), "30 minutes")).agg(avg("magnitude").alias("avg_magnitude"))
 mongo_query1_stream = avg_magnitude_df.writeStream.trigger(processingTime='60 seconds').outputMode('update').foreachBatch(lambda batch_df, epoch_id: write_to_mongodb(batch_df, epoch_id, "avgMagnitude")).start()
 
+# Streaming ispis u konzolu, takođe sa append modom
+query = avg_magnitude_df.writeStream.outputMode("update").format("console").option("truncate", "false").start()
+query.awaitTermination()
 
+
+'''
 #*****UPIT 2***** Ukupna energija oslobodjena zemljotresima u poslednjih X minuta
 energy_df = df.groupBy(window(col("time"), "30 minutes")).agg(
     F.sum(F.pow(10, 1.5 * col("magnitude") + 4.8)).alias("total_energy")
@@ -161,7 +166,7 @@ query = region_quake_count_df.writeStream.outputMode("complete").option("truncat
 query.awaitTermination()
 
 '''
-
+'''
 ##TREBA DODATI NEKI SA SPAJANJEM JOIN
 
 # Dodavanje vremena u minutima za jednostavnu grupaciju
@@ -198,3 +203,4 @@ alert_df = joined_df.withColumn(
 # Prikaz rezultata (ili pisanje u MongoDB)
 query = alert_df.writeStream.outputMode("append").format("console").start()
 query.awaitTermination()
+'''

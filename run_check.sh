@@ -1,0 +1,1 @@
+docker exec -it spark-master bash -c "chmod +x ./model/startchecktable.sh && ./model/startchecktable.sh"
