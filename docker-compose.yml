@@ -243,6 +243,8 @@ services:
       context: ./kepler-backend
       dockerfile: Dockerfile
     container_name: kepler-backend
+    ports:
+      - "8087:8000"
     depends_on:
       - kafka1
       - mongodb

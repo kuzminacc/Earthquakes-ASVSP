@@ -1,21 +1,25 @@
-// OpenStreetMap tiles za Kepler.gl
+// CartoDB Positron tiles - Free, no CORS issues
 export const MAP_STYLE_OSM = {
   version: 8,
   sources: {
-    osm: {
+    carto: {
       type: "raster",
-      tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256
+      tiles: [
+        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors © CARTO"
     }
   },
   layers: [
     {
-      id: "osm",
+      id: "carto",
       type: "raster",
-      source: "osm",
+      source: "carto",
       minzoom: 0,
       maxzoom: 19
     }
-  ],
-  glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf"
+  ]
 };

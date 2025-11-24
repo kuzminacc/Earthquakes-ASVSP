@@ -8,6 +8,7 @@ from aiokafka.errors import KafkaConnectionError
 from typing import List
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 # Load environment variables if .env exists
 load_dotenv(".env") if os.path.exists(".env") else None
@@ -19,6 +20,14 @@ MONGO_URI = os.environ.get("MONGO_URI", "mongodb://mongodb:27017")
 SAVE_TO_MONGO = os.environ.get("SAVE_TO_MONGO", "true").lower() in ("1", "true", "yes")
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[""],  # In production, specify exact origins
+    allow_credentials=True,
+    allow_methods=[""],
+    allow_headers=["*"],
+)
 
 # --- WebSocket Connection Manager ---
 class ConnectionManager:
