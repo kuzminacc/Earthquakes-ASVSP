@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+aiokafka
+pymongo[srv]
+orjson
+python-dotenv

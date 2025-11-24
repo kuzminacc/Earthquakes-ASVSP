@@ -237,6 +237,27 @@ services:
       ME_CONFIG_BASICAUTH_PASSWORD: "admin"  # Lozinka za UI
     depends_on:
       - mongodb
+  
+  kepler-backend:
+    build:
+      context: ./kepler-backend
+      dockerfile: Dockerfile
+    container_name: kepler-backend
+    depends_on:
+      - kafka1
+      - mongodb
+
+  kepler-frontend:
+    build:
+      context: ./kepler-frontend
+      dockerfile: Dockerfile
+    container_name: kepler-frontend
+    ports:
+      - "8086:80" 
+    depends_on:
+      - kepler-backend
+
+
       
 volumes:
   hadoop_namenode:

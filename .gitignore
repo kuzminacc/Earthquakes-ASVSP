@@ -2,3 +2,4 @@
 /models/seismic_model
 config.env
 .env
+/kepler-frontend/node_modules

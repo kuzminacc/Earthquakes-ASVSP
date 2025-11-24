@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realtime Earthquake Visualization</title>
+
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+    <!-- Redux & React-Redux -->
+    <script src="https://unpkg.com/redux@4.2.1/dist/redux.min.js"></script>
+    <script src="https://unpkg.com/react-redux@8.1.1/dist/react-redux.min.js"></script>
+
+    <!-- Styled Components -->
+    <script src="https://unpkg.com/styled-components/dist/styled-components.min.js"></script>
+
+    <!-- Kepler.gl UMD -->
+    <script src="https://unpkg.com/kepler.gl@2.5.4/umd/keplergl.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/kepler.gl@2.5.4/dist/keplergl.css">
+
+
+    <style>
+        html, body { margin: 0; padding: 0; height: 100%; width: 100%; }
+        #app { width: 100vw; height: 100vh; }
+        .status-bar {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 1000;
+            font-size: 14px;
+        }
+        .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+        .connected { background-color: #4ade80; }
+        .disconnected { background-color: #ef4444; }
+        .stats { margin-top: 8px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        const { createStore, combineReducers } = Redux;
+        const { Provider } = ReactRedux;
+        const KeplerGl = window.KeplerGl;
+
+        // --- Redux store ---
+        const reducers = combineReducers({ keplerGl: KeplerGl.keplerGlReducer });
+        const store = createStore(reducers);
+
+        // --- App Component ---
+        function App() {
+            const [connected, setConnected] = React.useState(false);
+            const [earthquakes, setEarthquakes] = React.useState([]);
+            const [totalEvents, setTotalEvents] = React.useState(0);
+            const [lastUpdate, setLastUpdate] = React.useState(null);
+
+            // --- WebSocket ---
+            React.useEffect(() => {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+                const ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => setConnected(true);
+                ws.onclose = () => setConnected(false);
+                ws.onerror = () => setConnected(false);
+                ws.onmessage = (event) => {
+                    try {
+                        const eq = JSON.parse(event.data);
+                        setEarthquakes(prev => {
+                            const newArr = [...prev, eq].slice(-1000);
+                            setTotalEvents(prevTotal => prevTotal + 1);
+                            setLastUpdate(new Date().toLocaleTimeString());
+                            updateMap(newArr);
+                            return newArr;
+                        });
+                    } catch(e) { console.error(e); }
+                };
+
+                return () => ws.close();
+            }, []);
+
+            // --- Initialize Kepler.gl ---
+            React.useEffect(() => {
+                store.dispatch(
+                    KeplerGl.actions.addDataToMap({
+                        datasets: {
+                            info: { label: 'Earthquakes', id: 'earthquakes' },
+                            data: { fields: [
+                                { name: 'latitude', type: 'real' },
+                                { name: 'longitude', type: 'real' },
+                                { name: 'magnitude', type: 'real' },
+                                { name: 'depth', type: 'real' },
+                                { name: 'place', type: 'string' },
+                                { name: 'time', type: 'timestamp' }
+                            ], rows: [] }
+                        },
+                        config: {
+                            version: 'v1',
+                            config: {
+                                mapStyle: { styleType: 'dark' },
+                                mapState: { latitude: 20, longitude: 0, zoom: 2 }
+                            }
+                        }
+                    })
+                );
+            }, []);
+
+            // --- Update Map ---
+            function updateMap(eqArr) {
+                const rows = eqArr.map(eq => {
+                    const coords = eq.geometry?.coordinates || [eq.longitude, eq.latitude, eq.depth || 0];
+                    const props = eq.properties || eq;
+                    return [
+                        coords[1], coords[0],
+                        props.mag || props.magnitude || 0,
+                        coords[2] || props.depth || 0,
+                        props.place || 'Unknown',
+                        props.time || Date.now()
+                    ];
+                });
+
+                store.dispatch(
+                    KeplerGl.actions.addDataToMap({
+                        datasets: {
+                            info: { label: 'Earthquakes', id: 'earthquakes' },
+                            data: {
+                                fields: [
+                                    { name: 'latitude', type: 'real' },
+                                    { name: 'longitude', type: 'real' },
+                                    { name: 'magnitude', type: 'real' },
+                                    { name: 'depth', type: 'real' },
+                                    { name: 'place', type: 'string' },
+                                    { name: 'time', type: 'timestamp' }
+                                ],
+                                rows
+                            }
+                        },
+                        option: { centerMap: false }
+                    })
+                );
+            }
+
+            return React.createElement('div', { style: { position: 'relative', width: '100%', height: '100%' } },
+                React.createElement('div', { className: 'status-bar' },
+                    React.createElement('div', null,
+                        React.createElement('span', { className: `status-indicator ${connected ? 'connected' : 'disconnected'}` }),
+                        connected ? 'Connected' : 'Disconnected'
+                    ),
+                    React.createElement('div', { className: 'stats' },
+                        `Events: ${totalEvents}`,
+                        lastUpdate ? React.createElement('div', null, `Last: ${lastUpdate}`) : null
+                    )
+                ),
+                React.createElement(KeplerGl.KeplerGl, { id: 'earthquake-map', mapboxApiAccessToken: '', width: window.innerWidth, height: window.innerHeight })
+            );
+        }
+
+        ReactDOM.render(
+            React.createElement(Provider, { store }, React.createElement(App)),
+            document.getElementById('app')
+        );
+    </script>
+</body>
+</html>
