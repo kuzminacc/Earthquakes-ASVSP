@@ -10,6 +10,54 @@ function Map() {
   const fieldsRef = useRef(null);
 
   useEffect(() => {
+
+    fetch("http://localhost:8087/history")
+      .then(res => res.json())
+      .then(historyData => {
+        console.log("Loaded historical earthquakes:", historyData);
+
+        if (historyData.length > 0) {
+          // Prepare fields only once
+          const sample = historyData[0];
+
+          if (!fieldsRef.current) {
+            const getFieldType = (value) => {
+              if (typeof value === "number") return "real";
+              if (typeof value === "string") return "string";
+              if (typeof value === "boolean") return "boolean";
+              if (value instanceof Date) return "timestamp";
+              return "string";
+            };
+
+            fieldsRef.current = Object.keys(sample).map(key => ({
+              name: key,
+              type: getFieldType(sample[key]),
+              format: "",
+              analyzerType: getFieldType(sample[key]) === "real" ? "FLOAT" : "STRING"
+            }));
+          }
+
+          // Convert history to Kepler rows
+          earthquakesRef.current = historyData.map(obj => Object.values(obj));
+
+          // Load historical dataset to Kepler GL
+          dispatch(
+            addDataToMap({
+              datasets: {
+                info: { label: "Earthquakes", id: "earthquakes" },
+                data: {
+                  fields: fieldsRef.current,
+                  rows: earthquakesRef.current,
+                },
+              },
+              options: { centerMap: true, readOnly: false },
+              config: {},
+            })
+          );
+        }
+      })
+      .catch(err => console.error("Failed to load history:", err));
+
     // WebSocket konekcija ka backend-u
     console.log("Attempting to connect to WebSocket at ws://localhost:8087/ws");
     const ws = new WebSocket("ws://localhost:8087/ws");

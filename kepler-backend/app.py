@@ -23,11 +23,12 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[""],  # In production, specify exact origins
+    allow_origins=["*"],  # ili ["http://localhost:8086"]
     allow_credentials=True,
-    allow_methods=[""],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # --- WebSocket Connection Manager ---
 class ConnectionManager:
@@ -61,6 +62,15 @@ if SAVE_TO_MONGO:
     mongo_client = MongoClient(MONGO_URI)
     mongo_db = mongo_client.get_database("earthquake_db")
     raw_collection = mongo_db.get_collection("raw_earthquakes")
+
+
+@app.get("/history")
+def get_history():
+    if raw_collection is None:
+        return []
+    data = list(raw_collection.find({}, {"_id": 0}))
+    return data
+
 
 # --- WebSocket endpoint ---
 @app.websocket("/ws")
