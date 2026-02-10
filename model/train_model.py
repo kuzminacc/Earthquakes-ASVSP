@@ -82,6 +82,26 @@ r2 = evaluator_r2.evaluate(predictions)
 print(f"Evaluation on test set: RMSE={rmse:.4f}, MAE={mae:.4f}, R2={r2:.4f}")
 
 
+# === FEATURE IMPORTANCE (Random Forest) ===
+print("📊 Calculating feature importance...")
+
+# RandomForest model je poslednja faza pipeline-a
+rf_model = model.stages[-1]
+
+# Feature importance vector
+importances = rf_model.featureImportances.toArray()
+
+# Mapiranje importance -> imena feature-a
+feature_importance = list(zip(feature_cols, importances))
+
+# Sortiranje (najuticajniji prvi)
+feature_importance.sort(key=lambda x: x[1], reverse=True)
+
+print("\n📊 Feature importance (descending):")
+for feature, importance in feature_importance:
+    print(f"{feature:25s} -> {importance:.4f}")
+
+
 # === Cuvanje modela u HDFS (ili lokalno u /models ako imas volumen) ===
 # Ovde se koristi shared folder /models koji je mount-ovan u docker-compose fajlu
 model_path = "/models/seismic_model"

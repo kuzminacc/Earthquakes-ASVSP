@@ -38,6 +38,7 @@ def send_email_alert(row):
         subject = f"Earthquake Alert! Predicted Magnitude {row.prediction:.1f}"
         body = f"""
         Predicted earthquake magnitude: {row.prediction:.1f}
+        Real magnitude: {row.magnitude}
         Location: {row.place or 'Unknown'}
         Coordinates: ({row.source_latitude}, {row.source_longitude})
         Depth: {row.source_depth_km} km
@@ -73,7 +74,7 @@ earthquakes = StructType([
 HDFS_NAMENODE = "hdfs://namenode:9000"
 TOPIC = "earthquakes-topic"
 KAFKA_BROKER = "kafka1:19092"
-ALERT_THRESHOLD = 2.5  # magnituda iznad koje šaljemo mejl
+ALERT_THRESHOLD = 4  # magnituda iznad koje šaljemo mejl
 
 EMAIL_SENDER = "earthquakealertsasvsp@gmail.com"
 EMAIL_PASSWORD = os.environ["EMAIL_PASSWORD"]
@@ -121,11 +122,11 @@ def process_batch(batch_df, epoch_id):
         return
     
     # Ispis predikcija i greške
-    rows = batch_df.select("id", "magnitude", "prediction", "error_abs", "alert", "source_latitude", "source_longitude", "source_depth_km", "source_gap_deg", "place").collect()
+    rows = batch_df.select("id", "magnitude", "prediction", "error_abs", "alert", "source_latitude", "source_longitude", "source_depth_km", "source_gap_deg", "place","time").collect()
     for row in rows:
         print(f"ID: {row.id}, Actual: {row.magnitude}, Prediction: {row.prediction:.2f}, "
               f"AbsError: {row.error_abs:.2f}, Alert: {row.alert}, "
-              f"Lat: {row.source_latitude}, Lon: {row.source_longitude}, Depth: {row.source_depth_km} , Gap: {row.source_gap_deg}, Place: {row.place}")
+              f"Lat: {row.source_latitude}, Lon: {row.source_longitude}, Depth: {row.source_depth_km} , Gap: {row.source_gap_deg}, Place: {row.place}, Time: {row.time}")
 
     # Upis u MongoDB - samo kolone koje MongoDB može da prihvati
     mongo_df = batch_df.select("id", "magnitude", "prediction", "error_abs", "alert", "source_latitude", "source_longitude", "source_depth_km", "source_gap_deg", "place", "time")
