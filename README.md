@@ -1,4 +1,4 @@
-# Earthquakes-ASVSP 🌍⚡  
+# Earthquakes Streaming & Analytics Pipeline 🌍⚡  
 **End-to-End Batch + Streaming Data Pipeline with Kafka, Spark & ML**
 
 This project implements a full data engineering pipeline for earthquake data, combining **batch processing**, **real-time streaming**, and a **machine learning prediction workflow**. The system ingests data from both historical and live sources, processes it using Apache Spark (batch + Structured Streaming), stores curated datasets, and supports visualization and real-time serving via a backend API.
