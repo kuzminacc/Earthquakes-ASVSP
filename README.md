@@ -33,6 +33,8 @@ The pipeline is composed of four modules:
 - **Kepler.gl** for map-based earthquake visualization  
 - **Backend:** FastAPI + WebSocket for real-time updates
 
+![System Architecture](ArhitekturaFinal.drawio.png)
+
 ---
 
 ## 🛠 Tech Stack
